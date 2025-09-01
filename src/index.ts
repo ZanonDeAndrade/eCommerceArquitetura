@@ -1,12 +1,13 @@
 import express from "express";
-import router from "./routes/productsRoutes.js";
+import productsRouter from "./routes/productsRoutes.js";
 
 const app = express();
 
 app.use(express.json());
 
-app.use("/products", router);
+// Rotas
+app.use("/products", productsRouter);
 
 app.listen(3000, () => {
-  console.log("Servidor rodando em http://localhost:3000");
+  console.log("🚀 Servidor rodando em http://localhost:3000");
 });
