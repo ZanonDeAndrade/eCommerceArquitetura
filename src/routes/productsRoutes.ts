@@ -14,20 +14,6 @@ const prisma = new PrismaClient();
 
 
 
-
-// No seu productsRoutes.js, adicione:
-// productsRoutes.js - adicione temporariamente
-router.get("/test-connection", async (req, res) => {
-    try {
-      await prisma.$connect();
-      res.json({ message: "Conexão OK com o banco" });
-    } catch (error: any) {
-      console.error("Erro na conexão:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-
 // Rotas para produtos (sem /products, pois já está no app.use)
 router.get("/", listarProdutos);           // GET /products
 router.get("/:id", listarProdutoId);       // GET /products/:id
