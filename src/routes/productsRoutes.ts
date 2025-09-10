@@ -6,7 +6,7 @@ import {
   criarProduto,
   atualizarProdutoId,
   deletarProdutoId,
-} from "../controllers/productsController.js";
+} from "../controllers/productsController";
 import { PrismaClient } from "@prisma/client";
 
 const router = Router();
