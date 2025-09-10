@@ -1,4 +1,4 @@
-import { PrismaClient, Order, Product, User } from "@prisma/client";
+import { PrismaClient, Product, User } from "@prisma/client";
 import { Request, Response } from "express";
 
 const prisma = new PrismaClient();
@@ -9,26 +9,22 @@ interface OrderItemInput {
 }
 
 // Criar novo pedido
-export const criarPedido = async (req: Request, res: Response): Promise<void> => {
+export const criarPedido = async (req: Request, res: Response) => {
   try {
     const { userId, items }: { userId: number; items: OrderItemInput[] } = req.body;
 
-    // Validação básica
     if (!userId || !items || !Array.isArray(items) || items.length === 0) {
-      res.status(400).json({
+      return res.status(400).json({
         message: "userId e items são obrigatórios. items deve ser um array não vazio.",
       });
-      return;
     }
 
-    // Verificar se o usuário existe
     const user: User | null = await prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
-      res.status(404).json({ message: "Usuário não encontrado." });
-      return;
+      return res.status(404).json({ message: "Usuário não encontrado." });
     }
 
     let total = 0;
@@ -58,14 +54,14 @@ export const criarPedido = async (req: Request, res: Response): Promise<void> =>
         total += product.price * quantity;
 
         return {
-          productId,
+          product: { connect: { id: productId } }, // ✅ RELAÇÃO CORRETA
           quantity,
           subtotal: product.price * quantity,
         };
       })
     );
 
-    const newOrder: Order & { items: typeof orderItems; user: User } = await prisma.$transaction(async (tx) => {
+    const newOrder = await prisma.$transaction(async (tx) => {
       const createdOrder = await tx.order.create({
         data: {
           userId,
@@ -76,11 +72,10 @@ export const criarPedido = async (req: Request, res: Response): Promise<void> =>
         },
         include: {
           user: true,
-          items: true,
+          items: { include: { product: true } },
         },
       });
 
-      // Atualizar estoque
       await Promise.all(
         items.map((item) =>
           tx.product.update({
@@ -104,8 +99,8 @@ export const criarPedido = async (req: Request, res: Response): Promise<void> =>
 };
 
 // Listar todos os pedidos
-export const listarPedidos = async (_req: Request, res: Response): Promise<void> => {
-  try {
+export const listarPedidos = async (_req: Request, res: Response) => {
+  try {    
     const orders = await prisma.order.findMany({
       include: {
         user: { select: { id: true, name: true, email: true } },
@@ -125,7 +120,7 @@ export const listarPedidos = async (_req: Request, res: Response): Promise<void>
 };
 
 // Buscar pedido por ID
-export const buscarPedidoPorId = async (req: Request, res: Response): Promise<void> => {
+export const buscarPedidoPorId = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
 
@@ -138,8 +133,7 @@ export const buscarPedidoPorId = async (req: Request, res: Response): Promise<vo
     });
 
     if (!order) {
-      res.status(404).json({ message: "Pedido não encontrado." });
-      return;
+      return res.status(404).json({ message: "Pedido não encontrado." });
     }
 
     res.status(200).json(order);
@@ -153,13 +147,15 @@ export const buscarPedidoPorId = async (req: Request, res: Response): Promise<vo
 };
 
 // Buscar pedidos de um usuário
-export const buscarPedidosDoUsuario = async (req: Request, res: Response): Promise<void> => {
+export const buscarPedidosDoUsuario = async (req: Request, res: Response) => {
   try {
     const userId = Number(req.params.userId);
 
     const orders = await prisma.order.findMany({
       where: { userId },
-      include: { items: { include: { product: { select: { id: true, name: true, price: true } } } } },
+      include: {
+        items: { include: { product: { select: { id: true, name: true, price: true } } } },
+      },
       orderBy: { createdAt: "desc" },
     });
 
