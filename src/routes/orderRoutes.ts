@@ -4,7 +4,7 @@ import {
   listarPedidos,
   buscarPedidoPorId,
   buscarPedidosDoUsuario,
-} from "../controllers/ordersController.ts";
+} from "../controllers/ordersController";
 
 const router = Router();
 

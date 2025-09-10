@@ -1,11 +1,16 @@
-// controllers/paymentController.ts
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 
 const prisma = new PrismaClient();
 
+export const listarMetodosPagamento = async (_req: Request, res: Response) => {
+  // Métodos disponíveis
+  const metodos = ["PIX", "Boleto", "Cartão"];
+  res.status(200).json(metodos);
+};
+
 interface PaymentInput {
-  method: string;
+  method: "PIX" | "Boleto" | "Cartão";
   amount: number;
 }
 
@@ -29,10 +34,8 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
 
     let allSuccess = true;
 
-    // Registrar cada pagamento
     for (const p of payments) {
-      // Aqui você pode implementar a integração real de pagamento
-      const success = Math.random() > 0.1; // Simulação de falha aleatória (10% falha)
+      const success = Math.random() > 0.1; // Simulação de falha (10%)
       if (!success) allSuccess = false;
 
       await prisma.payment.create({
@@ -45,7 +48,6 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
       });
     }
 
-    // Atualizar status do pedido
     const status = allSuccess ? "PAID" : "CANCELLED";
 
     const updatedOrder = await prisma.order.update({
@@ -67,10 +69,14 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
   }
 };
 
-// Buscar métodos de pagamento de um pedido
+// Buscar pagamentos de um pedido
 export const buscarPagamentosDoPedido = async (req: Request, res: Response) => {
   try {
     const orderId = Number(req.params.orderId);
+
+    if (!orderId) {
+      return res.status(400).json({ message: "orderId é obrigatório." });
+    }
 
     const payments = await prisma.payment.findMany({
       where: { orderId },
@@ -81,33 +87,6 @@ export const buscarPagamentosDoPedido = async (req: Request, res: Response) => {
     console.error("Erro ao buscar pagamentos:", error.message);
     res.status(500).json({
       message: "Erro interno ao buscar pagamentos.",
-      error: error.message,
-    });
-  }
-};
-
-// Atualizar estoque de produto (endpoint separado)
-export const atualizarEstoque = async (req: Request, res: Response) => {
-  try {
-    const { productId, quantity } = req.body;
-
-    if (!productId || !quantity || quantity <= 0) {
-      return res.status(400).json({ message: "productId e quantity válidos são obrigatórios." });
-    }
-
-    const updatedProduct = await prisma.product.update({
-      where: { id: productId },
-      data: { stock: { decrement: quantity } },
-    });
-
-    res.status(200).json({
-      message: "Estoque atualizado com sucesso.",
-      product: updatedProduct,
-    });
-  } catch (error: any) {
-    console.error("Erro ao atualizar estoque:", error.message);
-    res.status(500).json({
-      message: "Erro interno ao atualizar estoque.",
       error: error.message,
     });
   }

@@ -1,8 +1,8 @@
 import express from "express";
-import productsRouter from "./routes/productsRoutes.js";
-import ordersRouter from "./routes/orderRoutes.js";
-import usersRouter from "./routes/userRoutes.js";
-import paymentsRouter from "./routes/paymentRoutes.js"; 
+import productsRouter from "./routes/productsRoutes";
+import ordersRouter from "./routes/orderRoutes";
+import usersRouter from "./routes/userRoutes";
+import paymentsRouter from "./routes/paymentRoutes"; 
 
 const app = express();
 

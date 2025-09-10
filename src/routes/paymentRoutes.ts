@@ -1,16 +1,15 @@
-
 import { Router } from "express";
 import {
+  listarMetodosPagamento,
   confirmarPagamento,
   buscarPagamentosDoPedido,
-  atualizarEstoque,
-} from "../controllers/paymentController.js";
+} from "../controllers/paymentController";
 
 const router = Router();
 
-// Rotas de pagamento 
-router.post("/confirm", confirmarPagamento);      // POST /payments/confirm
-router.get("/:orderId", buscarPagamentosDoPedido); // GET /payments/:orderId
-router.post("/update-stock", atualizarEstoque);   // POST /payments/update-stock
+// Rotas de pagamento
+router.get("/methods", listarMetodosPagamento);          // GET /payments/methods
+router.post("/confirm", confirmarPagamento);            // POST /payments/confirm
+router.get("/order/:orderId", buscarPagamentosDoPedido); // GET /payments/order/:orderId
 
 export default router;
