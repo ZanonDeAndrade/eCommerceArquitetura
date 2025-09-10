@@ -1,8 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -22,21 +18,23 @@ model User {
 }
 
 model Product {
-  id        Int      @id @default(autoincrement())
-  name      String
-  price     Float
-  stock     Int
+  id         Int         @id @default(autoincrement())
+  name       String
+  price      Float
+  stock      Int
   orderItems OrderItem[]
-  createdAt DateTime @default(now())
+  createdAt  DateTime    @default(now())
 }
 
 model Order {
-  id        Int        @id @default(autoincrement())
-  user      User       @relation(fields: [userId], references: [id])
-  userId    Int
-  items     OrderItem[]
-  total     Float
-  createdAt DateTime   @default(now())
+  id         Int          @id @default(autoincrement())
+  user       User         @relation(fields: [userId], references: [id])
+  userId     Int
+  items      OrderItem[]
+  total      Float
+  status     OrderStatus  @default(PENDING)
+  payments   Payment[]
+  createdAt  DateTime     @default(now())
 }
 
 model OrderItem {
@@ -47,4 +45,21 @@ model OrderItem {
   productId Int
   quantity  Int
   subtotal  Float
+}
+
+model Payment {
+  id        Int       @id @default(autoincrement())
+  order     Order     @relation(fields: [orderId], references: [id])
+  orderId   Int
+  method    String    // Ex: 'CREDIT_CARD', 'PIX', 'BOLETO'
+  amount    Float
+  success   Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
+
+enum OrderStatus {
+  PENDING     // AGUARDANDO PAGAMENTO
+  FAILED      // FALHA NO PAGAMENTO
+  PAID        // PAGO
+  CANCELLED   // CANCELADO
 }

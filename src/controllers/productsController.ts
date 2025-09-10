@@ -3,9 +3,8 @@ import { Request, Response } from "express";
 
 const prisma = new PrismaClient();
 
-
 // Listar todos os produtos
-export const listarProdutos = async (req: Request, res: Response) => {
+export const listarProdutos = async (_req: Request, res: Response) => {
   try {
     const products = await prisma.product.findMany();
     res.status(200).json(products);
@@ -26,11 +25,11 @@ export const listarProdutoId = async (req: Request, res: Response) => {
       where: { id: Number(id) },
     });
 
-    if (product) {
-      res.status(200).json(product);
-    } else {
-      res.status(404).json({ message: "Produto não encontrado." });
+    if (!product) {
+      return res.status(404).json({ message: "Produto não encontrado." });
     }
+
+    res.status(200).json(product);
   } catch (error: any) {
     console.error("Erro ao listar produto:", error.message);
     res.status(500).json({
@@ -40,18 +39,18 @@ export const listarProdutoId = async (req: Request, res: Response) => {
   }
 };
 
-export const criarProduto = async (req: Request, res: Response) => {  
+// Criar produto
+export const criarProduto = async (req: Request, res: Response) => {
   try {
     const { name, price, stock } = req.body;
-    console.log("Dados extraídos:", { name, price, stock });
+
     if (!name || price === undefined || stock === undefined) {
-      console.log("❌ VALIDAÇÃO FALHOU");
       return res.status(400).json({
         message: "Nome, preço e estoque são obrigatórios",
-        received: { name, price, stock }
+        received: { name, price, stock },
       });
     }
-    
+
     const newProduct = await prisma.product.create({
       data: {
         name: String(name),
@@ -59,11 +58,10 @@ export const criarProduto = async (req: Request, res: Response) => {
         stock: Number(stock),
       },
     });
-    
+
     res.status(201).json(newProduct);
-    
   } catch (error: any) {
-    
+    console.error("Erro ao criar produto:", error.message);
     res.status(500).json({
       message: "Erro interno do servidor ao criar produto.",
       error: error.message,
