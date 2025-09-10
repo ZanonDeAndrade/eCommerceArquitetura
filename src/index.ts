@@ -1,7 +1,8 @@
 import express from "express";
 import productsRouter from "./routes/productsRoutes.js";
-import ordersRouter from "./routes/orderRoutes.js";    // ← Novo
-import usersRouter from "./routes/userRoutes.js"; 
+import ordersRouter from "./routes/orderRoutes.js";
+import usersRouter from "./routes/userRoutes.js";
+import paymentsRouter from "./routes/paymentRoutes.js"; 
 
 const app = express();
 
@@ -11,7 +12,9 @@ app.use(express.json());
 app.use("/products", productsRouter);
 app.use("/orders", ordersRouter);
 app.use("/users", usersRouter);
+app.use("/payments", paymentsRouter); 
 
-app.listen(3000, () => {
-  console.log("🚀 Servidor rodando em http://localhost:3000");
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });
