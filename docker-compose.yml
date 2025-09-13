@@ -1,35 +1,75 @@
 version: "3.8"
 
 services:
-  postgres-db:
+  # ----------------- Postgres para usuários -----------------
+  postgres-users:
     image: postgres:15
-    container_name: postgres_container
+    container_name: postgres_users
     restart: always
     environment:
-      POSTGRES_DB: ecommerce
-      POSTGRES_USER: marcelo
+      POSTGRES_DB: users_db
+      POSTGRES_USER: user
       POSTGRES_PASSWORD: 123456
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - postgres_db_data:/var/lib/postgresql/data
+      - postgres_users_data:/var/lib/postgresql/data
 
+  # ----------------- Postgres para produtos -----------------
+  postgres-products:
+    image: postgres:15
+    container_name: postgres_products
+    restart: always
+    environment:
+      POSTGRES_DB: products_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_products_data:/var/lib/postgresql/data
+
+  # ----------------- Postgres para pagamentos -----------------
+  postgres-payments:
+    image: postgres:15
+    container_name: postgres_payments
+    restart: always
+    environment:
+      POSTGRES_DB: payments_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_payments_data:/var/lib/postgresql/data
+
+  # ----------------- MongoDB para pedidos -----------------
+  mongo-orders:
+    image: mongo:6
+    container_name: mongo_orders
+    restart: always
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_orders_data:/data/db
+
+  # ----------------- PgAdmin (opcional) -----------------
   pgadmin:
     image: dpage/pgadmin4
-    container_name: pgadmin4_container
+    container_name: pgadmin_container
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
     depends_on:
-      - postgres-db
+      - postgres-users
+      - postgres-products
+      - postgres-payments
 
 volumes:
-  postgres_db_data:
-    driver: local
-  pgadmin_data:
-    driver: local
+  postgres_users_data:
+  postgres_products_data:
+  postgres_payments_data:
+  mongo_orders_data:
