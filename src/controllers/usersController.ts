@@ -37,7 +37,7 @@ export const criarUsuario = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-// Listar todos os usuários
+// Listar todos os usuários.
 export const listarUsuarios = async (_req: Request, res: Response): Promise<void> => {
   try {
     const users = await prisma.user.findMany({
