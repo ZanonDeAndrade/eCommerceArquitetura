@@ -3,7 +3,7 @@ import {
   criarUsuario,
   listarUsuarios,
   buscarUsuarioPorId,
-} from "../controllers/usersController";
+} from "../controllers/usersController.js";
 
 const router = Router();
 
