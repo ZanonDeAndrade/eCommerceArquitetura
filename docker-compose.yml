@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  # ----------------- Postgres para usuários -----------------
+  # ===================== BANCOS =====================
   postgres-users:
     image: postgres:15
     container_name: postgres_users
@@ -15,7 +15,6 @@ services:
     volumes:
       - postgres_users_data:/var/lib/postgresql/data
 
-  # ----------------- Postgres para produtos -----------------
   postgres-products:
     image: postgres:15
     container_name: postgres_products
@@ -29,7 +28,6 @@ services:
     volumes:
       - postgres_products_data:/var/lib/postgresql/data
 
-  # ----------------- Postgres para pagamentos -----------------
   postgres-payments:
     image: postgres:15
     container_name: postgres_payments
@@ -43,7 +41,6 @@ services:
     volumes:
       - postgres_payments_data:/var/lib/postgresql/data
 
-  # ----------------- MongoDB para pedidos -----------------
   mongo-orders:
     image: mongo:6
     container_name: mongo_orders
@@ -53,7 +50,58 @@ services:
     volumes:
       - mongo_orders_data:/data/db
 
-  # ----------------- PgAdmin (opcional) -----------------
+  # ===================== SERVIÇOS =====================
+  order-service:
+    build: ./order-service
+    container_name: orders_service
+    restart: always
+    environment:
+      - PORT=3000
+      - DATABASE_URL=mongodb://mongo-orders:27017/orders_db
+    ports:
+      - "3001:3000"
+    depends_on:
+      - mongo-orders
+
+  users-service:
+    build: ./users-service
+    container_name: users_service
+    restart: always
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://user:123456@postgres-users:5432/users_db
+    ports:
+      - "3002:3000"
+    depends_on:
+      - postgres-users
+
+  products-service:
+    build: ./products-service
+    container_name: products_service
+    restart: always
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://user:123456@postgres-products:5432/products_db
+    ports:
+      - "3003:3000"
+    depends_on:
+      - postgres-products
+
+  payment-service:
+    build: ./payment-service
+    container_name: payments_service
+    restart: always
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://user:123456@postgres-payments:5432/payments_db
+      - ORDER_API_URL=http://order-service:3000
+    ports:
+      - "3004:3000"
+    depends_on:
+      - postgres-payments
+      - order-service
+
+  # ===================== UIs =====================
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin_container
@@ -63,13 +111,30 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     depends_on:
       - postgres-users
       - postgres-products
       - postgres-payments
 
+  mongo-express:
+    image: mongo-express
+    container_name: mongo_express_ui
+    restart: always
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo-orders
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongo-orders
+
+# ===================== VOLUMES =====================
 volumes:
   postgres_users_data:
   postgres_products_data:
   postgres_payments_data:
   mongo_orders_data:
+  pgadmin_data:
