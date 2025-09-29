@@ -41,8 +41,27 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Pedido não encontrado." });
     }
 
-    let allSuccess = true;
+    const currentStatus = String(order.status ?? "").toUpperCase();
+    if (currentStatus === "PAID") {
+      return res.status(400).json({ message: "O pedido já foi pago." });
+    }
+    if (currentStatus === "CANCELLED") {
+      return res.status(400).json({ message: "Pedidos cancelados não podem receber pagamento." });
+    }
+
+    const orderTotal = Number(order.total ?? 0);
+    if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
+      return res.status(500).json({ message: "Valor total do pedido inválido." });
+    }
+
     const amount = payments.reduce((total, payment) => total + payment.amount, 0);
+    if (Math.abs(amount - orderTotal) > 0.01) {
+      return res.status(400).json({
+        message: "Valor informado diferente do total do pedido.",
+        esperado: orderTotal,
+        informado: amount,
+      });
+    }
 
     let customerEmail: string | null = null;
 
@@ -53,26 +72,21 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
       console.warn("Não foi possível recuperar email do usuário:", err?.message ?? err);
     }
 
-    const creationPromises = payments.map(async (payment) => {
-      const success = Math.random() > 0.1;
-      if (!success) {
-        allSuccess = false;
-      }
-
-      return prisma.payment.create({
+    const creationPromises = payments.map((payment) =>
+      prisma.payment.create({
         data: {
           orderId,
           method: payment.method,
           amount: payment.amount,
-          success,
+          success: true,
         },
-      });
-    });
+      }),
+    );
 
     const registros = await Promise.all(creationPromises);
 
     await axios.patch(`${ORDER_SERVICE_URL}/orders/${orderId}/status`, {
-      status: allSuccess ? "PAID" : "CANCELLED",
+      status: "PAID",
     });
 
     if (customerEmail) {
@@ -83,9 +97,7 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
         payments,
       };
 
-      const url = allSuccess
-        ? `${EMAIL_SERVICE_URL}/emails/payment/confirmation`
-        : `${EMAIL_SERVICE_URL}/emails/payment/cancellation`;
+      const url = `${EMAIL_SERVICE_URL}/emails/payment/confirmation`;
 
       axios
         .post(url, payload)
@@ -93,7 +105,7 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
     }
 
     res.status(200).json({
-      message: allSuccess ? "Pagamento confirmado." : "Pagamento falhou para ao menos uma transação.",
+      message: "Pagamento confirmado.",
       payments: registros,
     });
   } catch (error: any) {
