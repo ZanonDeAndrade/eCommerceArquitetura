@@ -103,6 +103,9 @@ services:
     environment:
       - PORT=3000
       - DATABASE_URL=postgresql://user:123456@postgres-products:5432/products_db
+      - EMAIL_SERVICE_URL=http://email-service:3000
+      - SUPPLIER_EMAIL=fornecedor@ecommerce.local
+      - LOW_STOCK_THRESHOLD=5
     ports:
       - "3003:3000"
     depends_on:
@@ -116,11 +119,25 @@ services:
       - PORT=3000
       - DATABASE_URL=postgresql://user:123456@postgres-payments:5432/payments_db
       - ORDER_API_URL=http://order-service:3000
+      - EMAIL_SERVICE_URL=http://email-service:3000
+      - USERS_SERVICE_URL=http://users-service:3000
     ports:
       - "3004:3000"
     depends_on:
       - postgres-payments
       - order-service
+      - email-service
+
+  email-service:
+    build: ./email-service
+    container_name: email_service
+    restart: always
+    environment:
+      - PORT=3000
+      - MAIL_FROM=no-reply@ecommerce.local
+      - LOW_STOCK_THRESHOLD=5
+    ports:
+      - "3005:3000"
 
   # ===================== UIs =====================
   pgadmin:
