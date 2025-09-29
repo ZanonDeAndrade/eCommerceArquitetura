@@ -18,6 +18,10 @@ export const listarProdutos = async (_req: Request, res: Response) => {
 export const listarProdutoId = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
+
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: "ID inválido." });
+    }
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) return res.status(404).json({ message: "Produto não encontrado." });
     res.status(200).json(product);
@@ -48,6 +52,10 @@ export const criarProduto = async (req: Request, res: Response) => {
 export const atualizarProdutoId = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
+
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: "ID inválido." });
+    }
     const { name, price, stock } = req.body;
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) return res.status(404).json({ message: "Produto não encontrado." });
@@ -67,6 +75,10 @@ export const atualizarProdutoId = async (req: Request, res: Response) => {
 export const deletarProdutoId = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
+
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: "ID inválido." });
+    }
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) return res.status(404).json({ message: "Produto não encontrado." });
     await prisma.product.delete({ where: { id } });
@@ -81,6 +93,10 @@ export const deletarProdutoId = async (req: Request, res: Response) => {
 export const decrementarEstoque = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
+
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: "ID inválido." });
+    }
     const { quantity } = req.body;
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) return res.status(404).json({ message: "Produto não encontrado." });

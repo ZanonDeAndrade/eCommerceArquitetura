@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "Product" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "price" DOUBLE PRECISION NOT NULL,
+    "stock" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
