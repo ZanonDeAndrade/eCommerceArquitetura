@@ -1,7 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
+import axios from "axios";
 
 const prisma = new PrismaClient();
+
+const EMAIL_SERVICE_URL = process.env.EMAIL_SERVICE_URL ?? "http://email-service:3000";
+const SUPPLIER_EMAIL = process.env.SUPPLIER_EMAIL ?? "fornecedor@ecommerce.local";
+const LOW_STOCK_THRESHOLD = Number(process.env.LOW_STOCK_THRESHOLD ?? 5);
 
 // Listar todos os produtos
 export const listarProdutos = async (_req: Request, res: Response) => {
@@ -106,6 +111,18 @@ export const decrementarEstoque = async (req: Request, res: Response) => {
       where: { id },
       data: { stock: { decrement: quantity } },
     });
+
+    if (updatedProduct.stock <= LOW_STOCK_THRESHOLD) {
+      axios
+        .post(`${EMAIL_SERVICE_URL}/emails/inventory/low-stock`, {
+          to: SUPPLIER_EMAIL,
+          productId: updatedProduct.id,
+          productName: updatedProduct.name,
+          currentStock: updatedProduct.stock,
+          threshold: LOW_STOCK_THRESHOLD,
+        })
+        .catch((error: any) => console.warn("Falha ao notificar estoque baixo:", error?.message ?? error));
+    }
 
     res.status(200).json(updatedProduct);
   } catch (error: any) {
