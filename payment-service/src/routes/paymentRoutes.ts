@@ -3,7 +3,7 @@ import {
   listarMetodosPagamento,
   confirmarPagamento,
   buscarPagamentosDoPedido,
-} from "../controllers/paymentsController";
+} from "../controllers/paymentsController.js";
 
 const router = Router();
 

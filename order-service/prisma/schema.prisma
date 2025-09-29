@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Order {
-  id        String   @id @map("_id") @default(auto()) 
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
   userId    Int
   items     OrderItem[]
   total     Float
@@ -16,8 +16,7 @@ model Order {
   createdAt DateTime    @default(now())
 }
 
-model OrderItem {
-  id        String   @id @map("_id") @default(auto())
+type OrderItem {
   productId Int
   quantity  Int
   subtotal  Float
