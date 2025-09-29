@@ -44,11 +44,27 @@ services:
   mongo-orders:
     image: mongo:6
     container_name: mongo_orders
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     ports:
       - "27018:27017"
     volumes:
       - mongo_orders_data:/data/db
+
+  mongo-orders-init:
+    image: mongo:6
+    container_name: mongo_orders_init
+    depends_on:
+      mongo-orders:
+        condition: service_healthy
+    command: ["sh", "-c", "mongosh --host mongo-orders:27017 --eval \"rs.initiate({_id: 'rs0', members: [{ _id: 0, host: 'mongo-orders:27017' }]})\" || true"]
+    restart: "no"
 
   # ===================== SERVIÇOS =====================
   order-service:
@@ -57,13 +73,16 @@ services:
     restart: always
     environment:
       - PORT=3000
-      - DATABASE_URL=mongodb://mongo-orders:27017/orders_db
+      - DATABASE_URL=mongodb://mongo-orders:27017/orders_db?replicaSet=rs0
       - USERS_SERVICE_URL=http://users-service:3000
       - PRODUCTS_SERVICE_URL=http://products-service:3000
     ports:
       - "3001:3000"
     depends_on:
-      - mongo-orders
+      mongo-orders:
+        condition: service_healthy
+      mongo-orders-init:
+        condition: service_completed_successfully
 
   users-service:
     build: ./users-service
