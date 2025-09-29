@@ -23,12 +23,26 @@ interface LowStockEmailInput {
 }
 
 async function sendEmail(subject: string, html: string, to: string) {
-  await transporter.sendMail({
+  const info = await transporter.sendMail({
     from: DEFAULT_FROM,
     to,
     subject,
     html,
   });
+
+  console.log(
+    "Email simulado enviado",
+    JSON.stringify(
+      {
+        to,
+        subject,
+        html,
+        messageId: info.messageId,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 export const enviarEmailConfirmacaoPagamento = async (req: Request, res: Response) => {
