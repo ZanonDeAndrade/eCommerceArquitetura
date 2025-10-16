@@ -52,6 +52,11 @@ export const criarProduto = async (req: Request, res: Response) => {
         .status(400)
         .json({ message: "Nome, preço e estoque são obrigatórios" });
     }
+    if (price < 0 || stock < 0) {
+      return res
+        .status(400)
+        .json({ message: "Preço e estoque não podem ser negativos" });
+    }
     const newProduct = await prisma.product.create({
       data: { name, price, stock },
     });
