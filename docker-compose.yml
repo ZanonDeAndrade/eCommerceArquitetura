@@ -76,7 +76,7 @@ services:
       - USERS_SERVICE_URL=http://users-service:3000
       - PRODUCTS_SERVICE_URL=http://products-service:3000
     ports:
-      - "3001:3000"
+      - "3009:3000"
     depends_on:
       mongo-orders:
         condition: service_healthy
@@ -123,12 +123,15 @@ services:
       - ORDER_API_URL=http://order-service:3000
       - EMAIL_SERVICE_URL=http://email-service:3000
       - USERS_SERVICE_URL=http://users-service:3000
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - PAYMENT_NOTIFICATION_QUEUE=payment_notifications
     ports:
       - "3004:3000"
     depends_on:
       - postgres-payments
       - order-service
       - email-service
+      - rabbitmq
 
   email-service:
     image: ecommercearquitetura/email-service:local
@@ -139,8 +142,21 @@ services:
       - PORT=3000
       - MAIL_FROM=no-reply@ecommerce.local
       - LOW_STOCK_THRESHOLD=5
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - PAYMENT_NOTIFICATION_QUEUE=payment_notifications
     ports:
       - "3005:3000"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=ecommerce
+      - RABBITMQ_DEFAULT_PASS=ecommerce
+    ports:
+      - "5672:5672"
+      - "15672:15672"
 
   # ===================== UIs =====================
   pgadmin:
@@ -168,7 +184,7 @@ services:
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: admin
     ports:
-      - "8081:8081"
+      - "8085:8081"
     depends_on:
       - mongo-orders
 

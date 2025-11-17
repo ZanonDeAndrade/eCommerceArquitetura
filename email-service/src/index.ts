@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import emailRoutes from "./routes/emailRoutes.js";
+import { startPaymentNotificationConsumer } from "./messaging/paymentNotificationConsumer.js";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -17,4 +18,5 @@ app.get("/health", (_req, res) => {
 
 app.listen(PORT, HOST, () => {
   console.log(`Email Service rodando na porta ${PORT}`);
+  void startPaymentNotificationConsumer();
 });

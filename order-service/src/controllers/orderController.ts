@@ -55,8 +55,8 @@ export const criarPedido = async (req: Request, res: Response) => {
       const subtotal = product.price * item.quantity;
       total += subtotal;
 
-      await axios.patch(`${PRODUCTS_SERVICE_URL}/products/${item.productId}/decrement-stock`, {
-        quantity: item.quantity,
+      await axios.patch(`${PRODUCTS_SERVICE_URL}/products/${item.productId}/stock`, {
+        stock: -item.quantity,
       });
 
       orderItems.push({

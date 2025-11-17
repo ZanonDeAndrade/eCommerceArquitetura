@@ -1,11 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import axios from "axios";
+import { publishPaymentConfirmed } from "../messaging/paymentNotificationPublisher.js";
 
 const prisma = new PrismaClient();
 
 const ORDER_SERVICE_URL = process.env.ORDER_API_URL ?? "http://order-service:3000";
-const EMAIL_SERVICE_URL = process.env.EMAIL_SERVICE_URL ?? "http://email-service:3000";
 const USERS_SERVICE_URL = process.env.USERS_SERVICE_URL ?? "http://users-service:3000";
 
 const METODOS_PERMITIDOS = ["PIX", "Boleto", "Cartão"] as const;
@@ -63,13 +63,13 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
       });
     }
 
-    let customerEmail: string | null = null;
+    let customerName: string | null = null;
 
     try {
       const userResponse = await axios.get(`${USERS_SERVICE_URL}/users/${order.userId}`);
-      customerEmail = userResponse.data?.email ?? null;
+      customerName = userResponse.data?.name ?? null;
     } catch (err: any) {
-      console.warn("Não foi possível recuperar email do usuário:", err?.message ?? err);
+      console.warn("Não foi possível recuperar dados do usuário:", err?.message ?? err);
     }
 
     const creationPromises = payments.map((payment) =>
@@ -89,19 +89,14 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
       status: "PAID",
     });
 
-    if (customerEmail) {
-      const payload = {
-        to: customerEmail,
+    if (customerName) {
+      publishPaymentConfirmed({
         orderId,
-        amount,
-        payments,
-      };
-
-      const url = `${EMAIL_SERVICE_URL}/emails/payment/confirmation`;
-
-      axios
-        .post(url, payload)
-        .catch((err: any) => console.warn("Falha ao notificar serviço de email:", err?.message ?? err));
+        userId: Number(order.userId),
+        userName: customerName,
+      }).catch((err: any) =>
+        console.warn("Falha ao publicar evento de pagamento confirmado:", err?.message ?? err),
+      );
     }
 
     res.status(200).json({
