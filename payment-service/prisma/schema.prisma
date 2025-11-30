@@ -10,8 +10,13 @@ datasource db {
 model Payment {
   id        Int      @id @default(autoincrement())
   orderId   String   // referência ao order-service
+  userId    Int
   method    String
   amount    Float
   success   Boolean  @default(false)
+  status    String   @default("PENDING")
+  cardNumber String?
+  metadata  Json?
+  externalId String? @unique
   createdAt DateTime @default(now())
 }

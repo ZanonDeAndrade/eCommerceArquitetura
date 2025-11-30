@@ -1,9 +1,8 @@
-import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import axios from "axios";
+import { randomUUID } from "crypto";
 import { publishPaymentConfirmed } from "../messaging/paymentNotificationPublisher.js";
-
-const prisma = new PrismaClient();
+import { prisma } from "../prismaClient.js";
 
 const ORDER_SERVICE_URL = process.env.ORDER_API_URL ?? "http://order-service:3000";
 const USERS_SERVICE_URL = process.env.USERS_SERVICE_URL ?? "http://users-service:3000";
@@ -14,6 +13,18 @@ type MetodoPagamento = (typeof METODOS_PERMITIDOS)[number];
 interface PaymentInput {
   method: MetodoPagamento;
   amount: number;
+  cardNumber?: string;
+  metadata?: Record<string, unknown>;
+}
+
+function sanitizeMetadata(metadata?: Record<string, unknown>) {
+  if (!metadata) return undefined;
+
+  try {
+    return JSON.parse(JSON.stringify(metadata));
+  } catch {
+    return undefined;
+  }
 }
 
 export const listarMetodosPagamento = (_req: Request, res: Response) => {
@@ -53,6 +64,10 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
     if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
       return res.status(500).json({ message: "Valor total do pedido inválido." });
     }
+    const orderUserId = Number(order.userId);
+    if (!Number.isFinite(orderUserId)) {
+      return res.status(500).json({ message: "userId do pedido inválido." });
+    }
 
     const amount = payments.reduce((total, payment) => total + payment.amount, 0);
     if (Math.abs(amount - orderTotal) > 0.01) {
@@ -76,9 +91,14 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
       prisma.payment.create({
         data: {
           orderId,
+          userId: orderUserId,
           method: payment.method,
           amount: payment.amount,
+          status: "APPROVED",
           success: true,
+          externalId: randomUUID(),
+          cardNumber: payment.cardNumber,
+          metadata: sanitizeMetadata(payment.metadata),
         },
       }),
     );

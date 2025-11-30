@@ -75,6 +75,9 @@ services:
       - DATABASE_URL=mongodb://mongo-orders:27017/orders_db?replicaSet=rs0
       - USERS_SERVICE_URL=http://users-service:3000
       - PRODUCTS_SERVICE_URL=http://products-service:3000
+      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_PAYMENT_TOPIC=orders.payment.request
+      - KAFKA_CLIENT_ID=order-service
     ports:
       - "3009:3000"
     depends_on:
@@ -82,6 +85,10 @@ services:
         condition: service_healthy
       mongo-orders-init:
         condition: service_completed_successfully
+      kafka:
+        condition: service_started
+      zookeeper:
+        condition: service_started
 
   users-service:
     image: ecommercearquitetura/users-service:local
@@ -125,6 +132,10 @@ services:
       - USERS_SERVICE_URL=http://users-service:3000
       - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
       - PAYMENT_NOTIFICATION_QUEUE=payment_notifications
+      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_PAYMENT_TOPIC=orders.payment.request
+      - KAFKA_GROUP_ID=payment-service
+      - KAFKA_CLIENT_ID=payment-service
     ports:
       - "3004:3000"
     depends_on:
@@ -132,6 +143,8 @@ services:
       - order-service
       - email-service
       - rabbitmq
+      - kafka
+      - zookeeper
 
   email-service:
     image: ecommercearquitetura/email-service:local
@@ -157,6 +170,56 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+
+  # ===================== Kafka =====================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka_ui
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    depends_on:
+      - kafka
+      - zookeeper
 
   # ===================== UIs =====================
   pgadmin:
@@ -242,3 +305,6 @@ volumes:
   pgadmin_data:
   influxdb_data:
   grafana_data:
+  kafka_data:
+  zookeeper_data:
+  zookeeper_log:
