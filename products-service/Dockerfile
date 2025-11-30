@@ -26,4 +26,4 @@ COPY --from=build /usr/src/app/prisma ./prisma
 RUN chown -R node:node /usr/src/app
 USER node
 
-CMD sh -lc "npx prisma migrate deploy && node dist/index.js"
+CMD sh -lc "npx prisma migrate deploy && npm run seed && node dist/index.js"

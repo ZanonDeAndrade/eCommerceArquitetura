@@ -1,6 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import axios from "axios";
+import {
+  PaymentRequestMessage,
+  buildPaymentRequestMessage,
+  paymentRequestTopic,
+  publishPaymentRequested,
+} from "../infra/kafka/paymentRequestProducer.js";
 
 const prisma = new PrismaClient();
 
@@ -19,15 +25,74 @@ interface OrderItemOutput {
   productId: number;
   quantity: number;
   subtotal: number;
+  productName?: string;
+}
+
+type RawPaymentInput = Record<string, unknown> | undefined;
+
+async function revertStockAdjustments(adjustments: { productId: number; quantity: number }[]): Promise<void> {
+  if (!adjustments.length) return;
+
+  await Promise.allSettled(
+    adjustments.map((item) =>
+      axios.patch(`${PRODUCTS_SERVICE_URL}/products/${item.productId}/stock`, {
+        stock: item.quantity,
+      }),
+    ),
+  );
+}
+
+interface NormalizedPaymentInput {
+  paymentId?: string;
+  method: string;
+  amount: number;
+  cardNumber?: string;
+  metadata?: Record<string, unknown>;
+}
+
+function normalizePaymentInput(rawPayment: RawPaymentInput, total: number): NormalizedPaymentInput {
+  const paymentData = rawPayment && typeof rawPayment === "object" ? rawPayment : {};
+  const method = String((paymentData as Record<string, unknown>).method ?? "PIX").trim();
+  if (!method) {
+    throw new Error("Método de pagamento inválido.");
+  }
+
+  const amount = Number((paymentData as Record<string, unknown>).amount ?? total);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Valor do pagamento inválido.");
+  }
+
+  const cardNumberValue = (paymentData as Record<string, unknown>).cardNumber;
+  const cardNumber =
+    cardNumberValue !== undefined && cardNumberValue !== null ? String(cardNumberValue).trim() : undefined;
+
+  const { method: _m, amount: _a, cardNumber: _c, paymentId, ...rest } = paymentData as Record<string, unknown>;
+  const metadataEntries = Object.entries(rest).filter(([, value]) => value !== undefined);
+  const metadata = metadataEntries.length ? Object.fromEntries(metadataEntries) : undefined;
+
+  return {
+    paymentId: typeof paymentId === "string" && paymentId.trim().length ? paymentId : undefined,
+    method,
+    amount,
+    cardNumber,
+    metadata,
+  };
 }
 
 export const criarPedido = async (req: Request, res: Response) => {
+  const stockAdjustments: { productId: number; quantity: number }[] = [];
+  let createdOrderId: string | null = null;
+
   try {
-    const { userId, items }: { userId: number; items: OrderItemInput[] } = req.body;
+    const { userId, items, payment, payments }: { userId: number; items: OrderItemInput[]; payment?: unknown; payments?: unknown[] } =
+      req.body ?? {};
 
     if (!userId || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "userId e items são obrigatórios." });
     }
+
+    const paymentPayload: RawPaymentInput =
+      (payment as RawPaymentInput) ?? (Array.isArray(payments) ? (payments[0] as RawPaymentInput) : undefined);
 
     // Valida usuário no serviço de usuários
     const userResponse = await axios.get(`${USERS_SERVICE_URL}/users/${userId}`);
@@ -58,11 +123,22 @@ export const criarPedido = async (req: Request, res: Response) => {
       await axios.patch(`${PRODUCTS_SERVICE_URL}/products/${item.productId}/stock`, {
         stock: -item.quantity,
       });
+      stockAdjustments.push({ productId: item.productId, quantity: item.quantity });
 
       orderItems.push({
         productId: item.productId,
         quantity: item.quantity,
         subtotal,
+        productName: product.name,
+      });
+    }
+
+    let normalizedPayment: NormalizedPaymentInput;
+    try {
+      normalizedPayment = normalizePaymentInput(paymentPayload, total);
+    } catch (validationError: any) {
+      return res.status(400).json({
+        message: validationError?.message ?? "Pagamento inválido.",
       });
     }
 
@@ -70,13 +146,64 @@ export const criarPedido = async (req: Request, res: Response) => {
       data: {
         userId,
         total,
-        items: orderItems,
+        items: orderItems.map(({ productId, quantity, subtotal }) => ({ productId, quantity, subtotal })),
       },
     });
+    createdOrderId = newOrder.id;
+
+    const paymentMessage: PaymentRequestMessage["payment"] = {
+      paymentId: normalizedPayment.paymentId ?? `${newOrder.id}-payment`,
+      orderId: newOrder.id,
+      userId,
+      method: normalizedPayment.method,
+      amount: normalizedPayment.amount,
+      ...(normalizedPayment.cardNumber ? { cardNumber: normalizedPayment.cardNumber } : {}),
+      ...(normalizedPayment.metadata ? { metadata: normalizedPayment.metadata } : {}),
+    };
+
+    const kafkaEvent = buildPaymentRequestMessage({
+      order: {
+        id: newOrder.id,
+        userId,
+        total,
+        items: orderItems,
+      },
+      payment: paymentMessage,
+    });
+
+    try {
+      await publishPaymentRequested(kafkaEvent);
+    } catch (kafkaError: any) {
+      await prisma.order.update({ where: { id: newOrder.id }, data: { status: "FAILED" } }).catch(() => {});
+      await revertStockAdjustments(stockAdjustments);
+      console.error("Erro ao publicar evento no Kafka:", kafkaError?.message ?? kafkaError);
+
+      return res.status(502).json({
+        message: "Falha ao enfileirar pedido para pagamento no Kafka.",
+        error: kafkaError?.message ?? String(kafkaError),
+      });
+    }
+
+    console.log(
+      JSON.stringify({
+        message: "pedido criado e enviado para pagamento",
+        orderId: newOrder.id,
+        topic: paymentRequestTopic,
+        total,
+      }),
+    );
 
     res.status(201).json(newOrder);
   } catch (error: any) {
     console.error("Erro ao criar pedido:", error?.message ?? error);
+
+    if (createdOrderId) {
+      await prisma.order.update({ where: { id: createdOrderId }, data: { status: "FAILED" } }).catch(() => {});
+    }
+
+    if (stockAdjustments.length) {
+      await revertStockAdjustments(stockAdjustments);
+    }
 
     if (axios.isAxiosError(error) && error.response) {
       return res.status(error.response.status).json(error.response.data);
