@@ -7,6 +7,7 @@ import {
   paymentRequestTopic,
   publishPaymentRequested,
 } from "../infra/kafka/paymentRequestProducer.js";
+import { invalidateCache } from "../infra/cache/cacheMiddleware.js";
 
 const prisma = new PrismaClient();
 
@@ -194,6 +195,7 @@ export const criarPedido = async (req: Request, res: Response) => {
     );
 
     res.status(201).json(newOrder);
+    await invalidateCache([`cache:order:${newOrder.id}`]);
   } catch (error: any) {
     console.error("Erro ao criar pedido:", error?.message ?? error);
 
@@ -275,6 +277,7 @@ export const atualizarStatusPedido = async (req: Request, res: Response) => {
     });
 
     res.status(200).json(updatedOrder);
+    await invalidateCache([`cache:order:${id}`]);
   } catch (error: any) {
     console.error("Erro ao atualizar status do pedido:", error?.message ?? error);
 

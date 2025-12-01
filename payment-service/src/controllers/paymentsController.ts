@@ -3,6 +3,7 @@ import axios from "axios";
 import { randomUUID } from "crypto";
 import { publishPaymentConfirmed } from "../messaging/paymentNotificationPublisher.js";
 import { prisma } from "../prismaClient.js";
+import { invalidateCache } from "../infra/cache/cacheMiddleware.js";
 
 const ORDER_SERVICE_URL = process.env.ORDER_API_URL ?? "http://order-service:3000";
 const USERS_SERVICE_URL = process.env.USERS_SERVICE_URL ?? "http://users-service:3000";
@@ -123,6 +124,7 @@ export const confirmarPagamento = async (req: Request, res: Response) => {
       message: "Pagamento confirmado.",
       payments: registros,
     });
+    await invalidateCache([`cache:payments:types`]);
   } catch (error: any) {
     console.error("Erro ao confirmar pagamento:", error?.message ?? error);
 

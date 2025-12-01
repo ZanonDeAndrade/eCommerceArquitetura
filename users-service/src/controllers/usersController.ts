@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
+import { invalidateCache } from "../infra/cache/cacheMiddleware.js";
 
 const prisma = new PrismaClient();
 
@@ -19,6 +20,7 @@ export const criarUsuario = async (req: Request, res: Response) => {
 
     const newUser = await prisma.user.create({ data: { name, email } });
     res.status(201).json(newUser);
+    await invalidateCache([`cache:user:${newUser.id}`]);
   } catch (error: any) {
     console.error("Erro ao criar usuário:", error.message);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
