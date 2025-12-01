@@ -8,20 +8,28 @@ if (!process.env.DATABASE_URL) {
 const prisma = new PrismaClient();
 
 const users = [
-  { id: 1, name: "Alice Souza", email: "alice@ecommerce.local" },
-  { id: 2, name: "Bruno Lima", email: "bruno@ecommerce.local" },
+  { name: "Alice Souza", email: "alice@ecommerce.local" },
+  { name: "Bruno Lima", email: "bruno@ecommerce.local" },
 ];
 
 async function main() {
   await Promise.all(
     users.map((user) =>
       prisma.user.upsert({
-        where: { id: user.id },
-        update: { name: user.name, email: user.email },
+        where: { email: user.email },
+        update: { name: user.name },
         create: user,
       }),
     ),
   );
+
+  // Reajusta a sequência para evitar duplicação de IDs ao criar novos usuários
+  await prisma.$executeRawUnsafe(`
+    SELECT setval(
+      pg_get_serial_sequence('"User"', 'id'),
+      COALESCE((SELECT MAX("id") FROM "User"), 0)
+    );
+  `);
 
   console.log("Seed: usuários criados/atualizados.");
 }

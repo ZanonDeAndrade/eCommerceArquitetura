@@ -14,10 +14,10 @@ Criar Produto: curl -X POST http://localhost:8000/products \
 Atualizar Produto: curl -X PUT http://localhost:8000/products/1 \
   -H "Content-Type: application/json" \
   -d '{"name":"Produto X","price":120,"stock":15}'
-Deletar Produto: curl -X DELETE http://localhost:8000/products/1
 Atualizar Estoque Produto:curl -X PATCH http://localhost:8000/products/1/stock \
   -H "Content-Type: application/json" \
   -d '{"stock":5}'
+Deletar Produto: curl -X DELETE http://localhost:8000/products/1
 
 
 
@@ -37,7 +37,7 @@ Atualizar Status: curl -X PATCH http://localhost:8000/orders/6753a5c9f0a5b5b7c1f
   -H "Content-Type: application/json" \
   -d '{"status":"PAID"}'
 Buscar Pedidos Usuário: curl http://localhost:8000/orders/user/1
-
+Deletar Pedido: curl -X DELETE http://localhost:8000/orders/1
 
 
 Listar Tipos pagamento: curl http://localhost:8000/payments/types
