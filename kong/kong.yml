@@ -8,35 +8,35 @@ services:
       - name: users-route
         paths:
           - /users
-        strip_path: true
+        strip_path: false
   - name: products-service
     url: http://products-service:3000
     routes:
       - name: products-route
         paths:
           - /products
-        strip_path: true
+        strip_path: false
   - name: orders-service
     url: http://order-service:3000
     routes:
       - name: orders-route
         paths:
           - /orders
-        strip_path: true
+        strip_path: false
   - name: payments-service
     url: http://payment-service:3000
     routes:
       - name: payments-route
         paths:
           - /payments
-        strip_path: true
+        strip_path: false
   - name: ui-service
     url: http://ui-service:3001
     routes:
       - name: ui-route
         paths:
           - /ui
-        strip_path: true
+        strip_path: false
 
 plugins:
   - name: rate-limiting
