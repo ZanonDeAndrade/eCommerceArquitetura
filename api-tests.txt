@@ -1,0 +1,52 @@
+Listar usuários: curl http://localhost:8000/users
+Buscar usuário por id: curl http://localhost:8000/users/1
+Criar Usuário: curl -X POST http://localhost:8000/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Novo Usuário","email":"novo@ecommerce.local"}'
+
+
+
+Listar Produtos: curl http://localhost:8000/products
+Buscar Produto ID: curl http://localhost:8000/products/1
+Criar Produto: curl -X POST http://localhost:8000/products \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Produto X","price":99.9,"stock":10}'
+Atualizar Produto: curl -X PUT http://localhost:8000/products/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Produto X","price":120,"stock":15}'
+Deletar Produto: curl -X DELETE http://localhost:8000/products/1
+Atualizar Estoque Produto:curl -X PATCH http://localhost:8000/products/1/stock \
+  -H "Content-Type: application/json" \
+  -d '{"stock":5}'
+
+
+
+Listar Pedidos: curl http://localhost:8000/orders
+Buscar Pedido ID: curl http://localhost:8000/orders/6753a5c9f0a5b5b7c1f00001
+Criar Pedido: curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 1,
+    "items": [
+      { "productId": 1, "quantity": 1 },
+      { "productId": 2, "quantity": 2 }
+    ],
+    "payment": { "method": "PIX", "amount": 4800 }
+  }'
+Atualizar Status: curl -X PATCH http://localhost:8000/orders/6753a5c9f0a5b5b7c1f00001/status \
+  -H "Content-Type: application/json" \
+  -d '{"status":"PAID"}'
+Buscar Pedidos Usuário: curl http://localhost:8000/orders/user/1
+
+
+
+Listar Tipos pagamento: curl http://localhost:8000/payments/types
+Confirmar Pagamento:curl -X POST http://localhost:8000/payments/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "6753a5c9f0a5b5b7c1f00001",
+    "payments": [
+      { "method": "PIX", "amount": 4800 }
+    ]
+  }'
+Listar Pagamentos Pedido: curl http://localhost:8000/payments/order/6753a5c9f0a5b5b7c1f00001

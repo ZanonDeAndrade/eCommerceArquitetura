@@ -1,6 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import axios from "axios";
+import { cacheMiddleware } from "../infra/cache/cacheMiddleware.js";
+import { invalidateCache } from "../infra/cache/cacheMiddleware.js";
 
 const prisma = new PrismaClient();
 
@@ -61,6 +63,7 @@ export const criarProduto = async (req: Request, res: Response) => {
       data: { name, price, stock },
     });
     res.status(201).json(newProduct);
+    await invalidateCache(["cache:products:all"]);
   } catch (error: any) {
     console.error("Erro ao criar produto:", error.message);
     res
@@ -91,6 +94,7 @@ export const atualizarProdutoId = async (req: Request, res: Response) => {
       },
     });
     res.status(200).json(updatedProduct);
+    await invalidateCache(["cache:products:all"]);
   } catch (error: any) {
     console.error("Erro ao atualizar produto:", error.message);
     res
@@ -112,6 +116,7 @@ export const deletarProdutoId = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Produto não encontrado." });
     await prisma.product.delete({ where: { id } });
     res.status(204).send();
+    await invalidateCache(["cache:products:all"]);
   } catch (error: any) {
     console.error("Erro ao deletar produto:", error.message);
     res
@@ -176,6 +181,7 @@ export const atualizarEstoqueProduto = async (req: Request, res: Response) => {
       message: "Estoque atualizado com sucesso.",
       produto: updatedProduct,
     });
+    await invalidateCache(["cache:products:all"]);
   } catch (error: any) {
     console.error("Erro ao atualizar estoque:", error.message);
     res

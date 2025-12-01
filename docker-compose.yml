@@ -1,4 +1,100 @@
 services:
+  # ===================== Infra Redis =====================
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  redis-ui:
+    image: rediscommander/redis-commander:latest
+    container_name: redis_ui
+    restart: always
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+
+  # ===================== Kong =====================
+  kong-db:
+    image: postgres:15
+    container_name: kong_db
+    restart: always
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+      POSTGRES_DB: kong
+    ports:
+      - "5439:5432"
+    volumes:
+      - kong_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong -d kong"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  kong-migrations:
+    image: kong:3.7
+    container_name: kong_migrations
+    depends_on:
+      kong-db:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PG_DATABASE: kong
+    command: ["/bin/sh", "-c", "(kong migrations bootstrap || true) && kong migrations up && kong migrations finish"]
+    restart: "no"
+
+  kong:
+    image: kong:3.7
+    container_name: kong
+    restart: always
+    depends_on:
+      kong-migrations:
+        condition: service_completed_successfully
+      kong-config:
+        condition: service_completed_successfully
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PG_DATABASE: kong
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    volumes:
+      - ./kong/kong.yml:/kong/kong.yml:ro
+
+  kong-config:
+    image: kong:3.7
+    container_name: kong_config
+    restart: "no"
+    depends_on:
+      kong-db:
+        condition: service_healthy
+      kong-migrations:
+        condition: service_completed_successfully
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PG_DATABASE: kong
+    volumes:
+      - ./kong/kong.yml:/kong/kong.yml:ro
+    command: ["kong", "config", "db_import", "/kong/kong.yml"]
+
   # ===================== BANCOS =====================
   postgres-users:
     image: postgres:15
@@ -78,8 +174,9 @@ services:
       - KAFKA_BROKERS=kafka:29092
       - KAFKA_PAYMENT_TOPIC=orders.payment.request
       - KAFKA_CLIENT_ID=order-service
-    ports:
-      - "3009:3000"
+      - REDIS_URL=redis://redis:6379
+    expose:
+      - "3000"
     depends_on:
       mongo-orders:
         condition: service_healthy
@@ -98,8 +195,9 @@ services:
     environment:
       - PORT=3000
       - DATABASE_URL=postgresql://user:123456@postgres-users:5432/users_db
-    ports:
-      - "3002:3000"
+      - REDIS_URL=redis://redis:6379
+    expose:
+      - "3000"
     depends_on:
       - postgres-users
 
@@ -114,8 +212,9 @@ services:
       - EMAIL_SERVICE_URL=http://email-service:3000
       - SUPPLIER_EMAIL=fornecedor@ecommerce.local
       - LOW_STOCK_THRESHOLD=5
-    ports:
-      - "3003:3000"
+      - REDIS_URL=redis://redis:6379
+    expose:
+      - "3000"
     depends_on:
       - postgres-products
 
@@ -136,8 +235,9 @@ services:
       - KAFKA_PAYMENT_TOPIC=orders.payment.request
       - KAFKA_GROUP_ID=payment-service
       - KAFKA_CLIENT_ID=payment-service
-    ports:
-      - "3004:3000"
+      - REDIS_URL=redis://redis:6379
+    expose:
+      - "3000"
     depends_on:
       - postgres-payments
       - order-service
@@ -157,9 +257,33 @@ services:
       - LOW_STOCK_THRESHOLD=5
       - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
       - PAYMENT_NOTIFICATION_QUEUE=payment_notifications
-    ports:
-      - "3005:3000"
+    expose:
+      - "3000"
 
+  notification-service:
+    image: ecommercearquitetura/notification-service:local
+    build: ./notification-service
+    container_name: notification_service
+    restart: always
+    environment:
+      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_PAYMENT_TOPIC=orders.payment.request
+      - KAFKA_CLIENT_ID=notification-service
+    depends_on:
+      - kafka
+      - zookeeper
+
+  ui-service:
+    image: ecommercearquitetura/ui-service:local
+    build: ./ui-service
+    container_name: ui_service
+    restart: always
+    environment:
+      - PORT=3001
+    depends_on:
+      - kong
+    expose:
+      - "3001"
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
@@ -305,6 +429,7 @@ volumes:
   pgadmin_data:
   influxdb_data:
   grafana_data:
+  kong_db_data:
   kafka_data:
   zookeeper_data:
   zookeeper_log:
