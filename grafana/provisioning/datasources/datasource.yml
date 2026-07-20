@@ -6,7 +6,7 @@ datasources:
     access: proxy
     url: http://influxdb:8086
     isDefault: true
-    database: k6
+    database: k6-payments
     user: admin
     secureJsonData:
       password: admin
@@ -14,4 +14,3 @@ datasources:
       httpMode: POST
       # InfluxDB 1.8 uses InfluxQL
       version: InfluxQL
-

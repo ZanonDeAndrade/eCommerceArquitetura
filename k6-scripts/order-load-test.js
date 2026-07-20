@@ -1,6 +1,9 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
 
+const ORDER_SERVICE_URL = __ENV.ORDER_SERVICE_URL || "http://order-service:3000";
+const ORDER_ID = __ENV.ORDER_ID || "6753a5c9f0a5b5b7c1f00001"; // seed default
+
 export const options = {
   stages: [
     { duration: "30s", target: 10 },
@@ -19,7 +22,7 @@ export const options = {
 };
 
 export default function () {
-  const url = "http://orders_service:3000/orders/1";
+  const url = `${ORDER_SERVICE_URL}/orders/${ORDER_ID}`;
   
   const params = {
     headers: { "Content-Type": "application/json" },
